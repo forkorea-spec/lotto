@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로또 추첨기</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+       background:#1a1a2e;color:#fff;font-family:sans-serif;padding:20px;box-sizing:border-box}
+  h1{margin:10px 0 20px}
+  #drum{position:relative;width:300px;height:300px;border-radius:50%;
+        border:6px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);overflow:hidden}
+  .ball{position:absolute;left:0;top:0;width:34px;height:34px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;
+        color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);
+        box-shadow:inset -4px -4px 8px rgba(0,0,0,.3),0 2px 4px rgba(0,0,0,.4)}
+  #result{display:flex;gap:8px;margin:28px 0;min-height:52px;align-items:center;
+          flex-wrap:wrap;justify-content:center}
+  #result .ball{position:static;width:46px;height:46px;font-size:20px;
+                animation:pop .7s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes pop{from{transform:translateY(-250px) scale(.3);opacity:0}
+                 to{transform:none;opacity:1}}
+  .plus{font-size:26px}
+  button{font-size:20px;padding:14px 40px;border:0;border-radius:30px;
+         background:#ff5e62;color:#fff;font-weight:bold}
+  button:disabled{opacity:.5}
+</style>
+</head>
+<body>
+  <h1>🎱 로또 추첨기</h1>
+  <div id="drum"></div>
+  <div id="result"></div>
+  <button id="btn">추첨 시작!</button>
+
+<script>
+const drum = document.getElementById('drum');
+const result = document.getElementById('result');
+const btn = document.getElementById('btn');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const color = n => n<=10 ? '#f5b301' : n<=20 ? '#2f7de1' : n<=30 ? '#e5484d' : n<=40 ? '#777' : '#2fa84f';
+
+function makeBall(n){
+  const b = document.createElement('div');
+  b.className = 'ball';
+  b.textContent = n;
+  b.style.background = color(n);
+  return b;
+}
+
+let balls = [];
+let speed = 1;
+
+function fill(){
+  drum.innerHTML = '';
+  balls = [];
+  for(let n=1; n<=45; n++){
+    const el = makeBall(n);
+    drum.appendChild(el);
+    balls.push({
+      n, el,
+      x: 100 + Math.random()*100,
+      y: 100 + Math.random()*100,
+      vx: (Math.random()-.5)*4,
+      vy: (Math.random()-.5)*4
+    });
+  }
+}
+
+function loop(){
+  for(const b of balls){
+    b.x += b.vx * speed;
+    b.y += b.vy * speed;
+    // 원형 통 안에서 튕기기
+    const cx = b.x + 17 - 150, cy = b.y + 17 - 150;
+    const d = Math.hypot(cx, cy);
+    if(d > 133){
+      const nx = cx/d, ny = cy/d;
+      const dot = b.vx*nx + b.vy*ny;
+      if(dot > 0){ b.vx -= 2*dot*nx; b.vy -= 2*dot*ny; }
+      b.x = 150 + nx*133 - 17;
+      b.y = 150 + ny*133 - 17;
+    }
+    b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
+  }
+  requestAnimationFrame(loop);
+}
+
+btn.onclick = async () => {
+  btn.disabled = true;
+  result.innerHTML = '';
+  fill();
+  speed = 4;                 // 공 막 섞이는 중
+  await sleep(1800);
+
+  for(let i=0; i<7; i++){    // 6개 + 보너스 1개
+    const idx = Math.floor(Math.random()*balls.length);
+    const [picked] = balls.splice(idx, 1);
+    picked.el.remove();
+
+    if(i === 6){
+      const plus = document.createElement('span');
+      plus.className = 'plus';
+      plus.textContent = '+';
+      result.appendChild(plus);
+    }
+    result.appendChild(makeBall(picked.n));
+    await sleep(1000);
+  }
+
+  speed = 1;
+  btn.textContent = '다시 뽑기';
+  btn.disabled = false;
+};
+
+fill();
+loop();
+</script>
+</body>
+</html>
